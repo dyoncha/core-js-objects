@@ -376,32 +376,74 @@ function group(array, keySelector, valueSelector) {
  */
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  selector: '',
+  lastSelectorOrder: 0,
+  singleSelectors: { hasElement: false, hasId: false, hasPseudoElement: false },
+
+  validateOrder(order) {
+    if (this.lastSelectorOrder > order) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  validateSingleUse(type) {
+    if (this.singleSelectors[type]) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  updateSelector(value, order, type = null) {
+    if (type) this.validateSingleUse(type);
+    this.validateOrder(order);
+    const singleSelectors = {
+      ...this.singleSelectors,
+      ...(type ? { [type]: true } : {}),
+    };
+    return {
+      ...this,
+      selector: this.selector + value,
+      singleSelectors,
+      lastSelectorOrder: order,
+    };
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return this.updateSelector(value, 1, 'hasElement');
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return this.updateSelector(`#${value}`, 2, 'hasId');
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return this.updateSelector(`.${value}`, 3);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return this.updateSelector(`[${value}]`, 4);
+  },
+
+  pseudoClass(value) {
+    return this.updateSelector(`:${value}`, 5);
+  },
+
+  pseudoElement(value) {
+    return this.updateSelector(`::${value}`, 6, 'hasPseudoElement');
+  },
+
+  combine(selector1, combinator, selector2) {
+    const selector = `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+    return { ...this, selector: this.selector + selector };
+  },
+
+  stringify() {
+    const result = this.selector;
+    this.selector = '';
+    return result;
   },
 };
 
